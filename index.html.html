@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan Pengelolaan Program Daerah SMSFX</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- html2pdf.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        /* Pengaturan fon dan asas */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        
+        /* Bekas Utama Kertas A4 */
+        .a4-container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 2rem auto;
+            background: white;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Latar Belakang (Hijau + Biru + Pensel Art) */
+        .pdf-bg {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            background: linear-gradient(135deg, rgba(167, 243, 208, 0.7), rgba(191, 219, 254, 0.7));
+            overflow: hidden;
+        }
+        .pdf-bg img {
+            width: 100%; height: 100%; object-fit: cover;
+            opacity: 0.08; filter: grayscale(100%) contrast(150%);
+        }
+
+        /* Gaya Input & ContentEditable */
+        .input-field {
+            width: 100%; background: rgba(255, 255, 255, 0.7);
+            border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px 10px;
+            outline: none; transition: 0.2s;
+        }
+        .input-field:focus { border-color: #3b82f6; background: #fff; }
+        
+        [contenteditable="true"] {
+            min-height: 1.5rem; border-bottom: 1px dashed #94a3b8; padding: 2px 4px; display: inline-block; width: 100%;
+        }
+        [contenteditable="true"]:focus { outline: none; border-bottom: 1px solid #2563eb; background-color: rgba(255,255,255,0.5); }
+
+        /* Sembunyikan anak panah pada input number */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        
+        /* Jadual */
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { border: 1px solid #475569; padding: 6px; text-align: center; }
+        th { background-color: #f1f5f9; font-weight: bold; }
+        .bg-user-input { background-color: #ffffff; }
+        .bg-auto-calc { background-color: #fef08a; font-weight: bold; color: #1e3a8a; }
+        .table-input { width: 100%; text-align: center; background: transparent; outline: none; }
+
+        /* Tajuk Bahagian A-E */
+        .section-title {
+            background-color: #1e3a8a; color: #ffffff; font-weight: bold;
+            padding: 6px 16px; display: inline-flex; align-items: center; gap: 8px;
+            margin-top: 1.5rem; margin-bottom: 1rem; border-radius: 4px; font-size: 0.95rem;
+        }
+
+        /* Break Muka Surat untuk PDF */
+        .page-break { page-break-before: always; margin-top: 2rem; }
+
+        /* Butang Terapung */
+        .floating-btn {
+            position: fixed; bottom: 30px; right: 30px; z-index: 50;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); transition: transform 0.2s;
+        }
+        .floating-btn:hover { transform: scale(1.05); }
+
+        /* Sembunyikan elemen tertentu semasa cetak/PDF */
+        .html2pdf__container [contenteditable="true"] { border: none !important; background: transparent !important; }
+        .html2pdf__container .input-field { border: none !important; background: transparent !important; padding: 0 !important; }
+        .html2pdf__container select { appearance: none; border: none; background: transparent; padding-left: 0 !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Butang Jana PDF -->
+    <button onclick="generatePDF()" class="floating-btn bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-full flex items-center gap-2 text-lg">
+        <i class="fas fa-file-pdf"></i> JANA PDF
+    </button>
+
+    <!-- Kontena Laporan Utama -->
+    <div id="report-content" class="a4-container">
+        
+        <!-- MUKA SURAT 1 -->
+        <div class="relative p-10 min-h-[297mm]">
+            <div class="pdf-bg">
+                <img src="https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop" crossorigin="anonymous" alt="bg">
+            </div>
+
+            <!-- LAMPIRAN A (Diletakkan di atas sekali supaya tidak bertindih) -->
+            <div class="text-right font-bold text-gray-800 italic mb-2">LAMPIRAN A</div>
+
+            <!-- Header Laporan -->
+            <div class="flex items-start justify-between mb-8">
+                <img src="https://i.postimg.cc/jjCBnTqd/edited-LOGO-SMSFX.png" crossorigin="anonymous" class="w-28 h-auto" alt="Logo Sekolah">
+                <div class="text-center flex-1 mt-2 px-4">
+                    <h1 class="bg-blue-900 text-yellow-400 font-bold inline-block px-6 py-2 text-xl tracking-wide uppercase">Laporan Pengelolaan Program Daerah</h1>
+                    <h2 class="font-bold text-lg mt-2 text-gray-900">SM.ST.FRANCIS XAVIER</h2>
+                    <div class="mt-1">
+                        <span contenteditable="true" class="font-bold text-xl text-center w-24 border-b-2 border-gray-600">2026</span>
+                    </div>
+                </div>
+                <div class="w-28"></div> <!-- Spacer untuk imbang logo -->
+            </div>
+
+            <!-- BAHAGIAN A -->
+            <div class="section-title"><i class="fas fa-info-circle"></i> BAHAGIAN A</div>
+            <div class="grid grid-cols-12 gap-4 mb-4">
+                <div class="col-span-4 font-semibold text-gray-800">1. NAMA AKTIVITI</div>
+                <div class="col-span-8"><div contenteditable="true" class="input-field">Sila masukkan nama aktiviti...</div></div>
+                
+                <div class="col-span-4 font-semibold text-gray-800">2. TARIKH PELAKSANAAN</div>
+                <div class="col-span-8"><input type="date" class="input-field w-auto cursor-pointer"></div>
+                
+                <div class="col-span-4 font-semibold text-gray-800">3. TEMPAT</div>
+                <div class="col-span-8"><div contenteditable="true" class="input-field">Sila masukkan tempat...</div></div>
+
+                <div class="col-span-4 font-semibold text-gray-800">4. MOD PELAKSANAAN</div>
+                <div class="col-span-8">
+                    <select class="input-field w-full bg-white cursor-pointer font-medium">
+                        <option value="Bersemuka">Bersemuka</option>
+                        <option value="Atas Talian">Atas Talian</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- BAHAGIAN B -->
+            <div class="section-title"><i class="fas fa-users"></i> BAHAGIAN B</div>
+            <p class="text-xs mb-2 italic text-gray-700 bg-yellow-100 inline-block px-2 py-1 rounded">* Senaraikan semua sekolah/PPD yang terlibat. Ruangan berwarna kuning dikira secara automatik.</p>
+            
+            <table id="penglibatanTable" class="mb-1">
+                <thead>
+                    <tr>
+                        <th rowspan="2" class="w-8">BIL.</th>
+                        <th rowspan="2" class="w-48">Nama Sekolah / PPD</th>
+                        <th rowspan="2" class="w-24">Kategori</th>
+                        <th colspan="2">Melayu/BP Sabah</th>
+                        <th colspan="2">Cina</th>
+                        <th colspan="2">India</th>
+                        <th colspan="2">Lain-lain</th>
+                        <th colspan="2" class="bg-blue-100">Jumlah</th>
+                        <th rowspan="2" class="bg-yellow-200">Jumlah Besar</th>
+                    </tr>
+                    <tr>
+                        <th>L</th><th>P</th><th>L</th><th>P</th><th>L</th><th>P</th><th>L</th><th>P</th><th class="bg-blue-100">L</th><th class="bg-blue-100">P</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Javascript will inject rows here dynamically -->
+                </tbody>
+                <tfoot>
+                    <tr class="bg-blue-900 text-white font-bold">
+                        <td colspan="3" class="text-right pr-4">JUMLAH KESELURUHAN</td>
+                        <td id="gt-m-l">0</td><td id="gt-m-p">0</td>
+                        <td id="gt-c-l">0</td><td id="gt-c-p">0</td>
+                        <td id="gt-i-l">0</td><td id="gt-i-p">0</td>
+                        <td id="gt-ll-l">0</td><td id="gt-ll-p">0</td>
+                        <td id="gt-jum-l" class="bg-blue-800">0</td><td id="gt-jum-p" class="bg-blue-800">0</td>
+                        <td id="gt-besar" class="bg-yellow-500 text-gray-900 text-lg">0</td>
+                    </tr>
+                </tfoot>
+            </table>
+            
+            <!-- Bahagian Penambahan Baris & Nota Bawah -->
+            <div class="flex justify-between items-center mt-2 mb-4">
+                <p class="text-xs italic text-gray-700 font-semibold">*Sila tambah ruang untuk penambahan sekolah /PPD (Boleh lampirkan senarai )</p>
+                <button id="btnTambahSekolah" onclick="addSchoolRow()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-1.5 px-4 rounded shadow flex items-center gap-1 transition-all">
+                    <i class="fas fa-plus"></i> Tambah Sekolah/PPD
+                </button>
+            </div>
+        </div> <!-- End Muka Surat 1 -->
+
+        <!-- MUKA SURAT 2 -->
+        <div class="page-break relative p-10 min-h-[297mm]">
+            <div class="pdf-bg">
+                <img src="https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop" crossorigin="anonymous" alt="bg">
+            </div>
+
+            <!-- BAHAGIAN C -->
+            <div class="section-title"><i class="fas fa-calendar-alt"></i> BAHAGIAN C</div>
+            <div class="grid grid-cols-12 gap-4 mb-6">
+                <div class="col-span-4 font-semibold text-gray-800">5. JADUAL PENGISIAN / PELAKSANAAN</div>
+                <div class="col-span-8"><div contenteditable="true" class="input-field min-h-[80px]">Sila nyatakan jadual pengisian...</div></div>
+
+                <div class="col-span-4 font-semibold text-gray-800">6. IMPLIKASI KEWANGAN<br><span class="text-xs font-normal">(Peruntukan / Perbelanjaan jika berkaitan)</span></div>
+                <div class="col-span-8"><div contenteditable="true" class="input-field min-h-[60px]">Sila nyatakan implikasi kewangan...</div></div>
+
+                <div class="col-span-4 font-semibold text-gray-800">7. TETAMU KEHORMAT<br><span class="text-xs font-normal">(Jika berkaitan)</span></div>
+                <div class="col-span-8"><div contenteditable="true" class="input-field">Nama tetamu kehormat...</div></div>
+                
+                <div class="col-span-4 font-semibold text-gray-800 pl-4">7.1 MAJLIS PEMBUKAAN / PELANCARAN</div>
+                <div class="col-span-8"><div contenteditable="true" class="input-field">Butiran majlis pembukaan...</div></div>
+
+                <div class="col-span-4 font-semibold text-gray-800 pl-4">7.2 MAJLIS PENUTUPAN</div>
+                <div class="col-span-8"><div contenteditable="true" class="input-field">Butiran majlis penutupan...</div></div>
+            </div>
+
+            <!-- BAHAGIAN D -->
+            <div class="section-title"><i class="fas fa-trophy"></i> BAHAGIAN D</div>
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-4 font-semibold text-gray-800">8. KEPUTUSAN PERTANDINGAN<br><span class="text-xs font-normal">(Senarai pemenang jika berkaitan)</span></div>
+                <div class="col-span-8"><div contenteditable="true" class="input-field min-h-[100px]">Senaraikan pemenang...</div></div>
+
+                <div class="col-span-4 font-semibold text-gray-800">9. ISU DAN CABARAN</div>
+                <div class="col-span-8"><div contenteditable="true" class="input-field min-h-[80px]">Nyatakan isu dan cabaran...</div></div>
+
+                <div class="col-span-4 font-semibold text-gray-800">10. CADANGAN PENAMBAHBAIKAN</div>
+                <div class="col-span-8"><div contenteditable="true" class="input-field min-h-[80px]">Nyatakan cadangan penambahbaikan...</div></div>
+            </div>
+        </div> <!-- End Muka Surat 2 -->
+
+        <!-- MUKA SURAT 3 -->
+        <div class="page-break relative p-10 min-h-[297mm] flex flex-col justify-between">
+            <div class="pdf-bg">
+                <img src="https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop" crossorigin="anonymous" alt="bg">
+            </div>
+
+            <div>
+                <!-- BAHAGIAN E -->
+                <div class="section-title"><i class="fas fa-file-signature"></i> BAHAGIAN E</div>
+                
+                <div class="bg-gray-100 p-4 rounded-md border border-gray-300 mb-4">
+                    <div class="grid grid-cols-12 gap-2 mb-2">
+                        <div class="col-span-3 font-semibold text-gray-800">11. AKTIVITI BERGAMBAR</div>
+                        <div class="col-span-9 font-bold">: Seperti Di Lampiran</div>
+                    </div>
+                    <div class="grid grid-cols-12 gap-2 mb-2">
+                        <div class="col-span-3 font-semibold text-gray-800 pl-6">NAMA AKTIVITI</div>
+                        <div class="col-span-9 flex"><span class="mr-2">:</span> <div contenteditable="true" class="input-field w-full"></div></div>
+                    </div>
+                    <div class="grid grid-cols-12 gap-2 mb-2">
+                        <div class="col-span-3 font-semibold text-gray-800 pl-6">TARIKH</div>
+                        <div class="col-span-9 flex"><span class="mr-2">:</span> <div contenteditable="true" class="input-field w-full"></div></div>
+                    </div>
+                    <div class="grid grid-cols-12 gap-2 mb-2">
+                        <div class="col-span-3 font-semibold text-gray-800 pl-6">TEMPAT</div>
+                        <div class="col-span-9 flex"><span class="mr-2">:</span> <div contenteditable="true" class="input-field w-full"></div></div>
+                    </div>
+                </div>
+
+                <div class="border border-gray-800 p-4 rounded-md mb-8 bg-white/60">
+                    <div class="font-bold mb-2">SINOPSIS AKTIVITI :</div>
+                    <div contenteditable="true" class="w-full min-h-[250px] outline-none leading-relaxed text-justify border-b-0" placeholder="Sila taip sinopsis aktiviti di sini..."></div>
+                </div>
+            </div>
+
+            <!-- Tanda Tangan -->
+            <div class="flex justify-between items-end mt-auto pt-8">
+                <div class="w-1/2 pr-4">
+                    <p class="font-bold mb-6">Disediakan oleh :</p>
+                    <p class="mb-1">Nama :</p>
+                    <select id="guruDropdown" class="w-full input-field font-semibold text-gray-900 mb-3 bg-white"></select>
+                    <p class="mb-1">Jawatan :</p>
+                    <select class="w-full input-field mb-3 bg-white">
+                        <option>Setiausaha Kokurikulum</option>
+                        <option>Setiausaha Sukan</option>
+                        <option>Penolong Setiausaha Sukan</option>
+                        <option>Ketua Guru Penasihat</option>
+                        <option>Penolong Ketua Guru Penasihat</option>
+                        <option>Guru Pengiring</option>
+                    </select>
+                    <p class="mb-1">Tarikh :</p>
+                    <input type="date" id="tarikhJana" class="input-field bg-white w-2/3 cursor-pointer">
+                </div>
+
+                <div class="w-1/2 pl-12">
+                    <p class="font-bold mb-16">Disahkan oleh :</p>
+                    <p class="font-bold text-lg border-b border-gray-400 inline-block pr-8 mb-1 uppercase">ANGELA ANN DAVID</p>
+                    <p class="font-semibold text-gray-700">PK Kokurikulum</p>
+                </div>
+            </div>
+        </div> <!-- End Muka Surat 3 -->
+
+        <!-- MUKA SURAT 4 (GAMBAR) -->
+        <div class="page-break relative p-10 min-h-[297mm]">
+            <div class="pdf-bg">
+                <img src="https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop" crossorigin="anonymous" alt="bg">
+            </div>
+
+            <div class="section-title w-full justify-center text-lg"><i class="fas fa-images"></i> GAMBAR-GAMBAR AKTIVITI</div>
+            
+            <div class="grid grid-cols-2 gap-6 mt-6">
+                <!-- 6 Slots Gambar -->
+                <script>
+                    for(let i=1; i<=6; i++) {
+                        document.write(`
+                            <div class="border-2 border-dashed border-gray-400 rounded-lg h-[240px] flex flex-col items-center justify-center relative overflow-hidden bg-white/70 shadow-sm group">
+                                <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="previewImage(this, 'img-${i}')">
+                                <i class="fas fa-camera text-4xl text-gray-300 mb-2 group-hover:text-blue-500 transition"></i>
+                                <span class="text-sm text-gray-500 font-medium group-hover:text-blue-500 transition">Klik / Tap untuk muat naik gambar</span>
+                                <img id="img-${i}" class="absolute inset-0 w-full h-full object-cover z-0 hidden" alt="Gambar ${i}">
+                                <button onclick="removeImage('img-${i}')" class="absolute top-2 right-2 z-20 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hidden shadow-md hover:bg-red-600" id="btn-rm-${i}">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        `);
+                    }
+                </script>
+            </div>
+            <p class="text-center text-gray-600 mt-6 italic text-sm"><i class="fas fa-info-circle"></i> Sila muat naik 6 keping gambar yang jelas berkaitan program.</p>
+        </div> <!-- End Muka Surat 4 -->
+
+    </div>
+
+    <script>
+        // Set Tarikh Hari Ini
+        document.getElementById('tarikhJana').valueAsDate = new Date();
+
+        // Data Senarai Guru
+        const senaraiGuru = [
+            "Sila Pilih Nama Guru...", "AG.AHMAD B. ABD.RAHMAN", "AHMAD AMIN BIN ROMLI", "ALEXANDRIA DONY", 
+            "ANDREY ASANG", "ARINA BINTI SAINAL", "BEATRICE ABLE PADTONG", "CAROL LENNY DONGGULU", 
+            "CORNELIA BINTI YURIMOS", "DAHLIYA BINTI MURI", "DAPHNIE EFFY FLORENTIUS", "DIONYSIA BINTI RUSANI", 
+            "DORA PONGOD", "HANAFI BIN MOHD ADNAN", "HANISAH BINTI HASSAN", "HANRRY BIN JOSEPH", 
+            "JAMIL BIN ANGKAUS", "JANET LEONG", "JOVINIA MODILIH", "KAREN DOROTHY HO", "LAURASIA JOSEPH", 
+            "LILLY BINTI JOSEPH", "LYDIA BINTI TUMIN", "MILVIN LEONG", "MOHD ARIFF BIN MOHD MUSTAZA", 
+            "MOHD.HARBUDI BIN SAHARIN", "MOHD. ZAKRI BIN MOKHTAR", "MUHAMMAD SOFWAN BIN SULAIMAN", 
+            "MUTAHAR BIN LEHANDO", "NABILAH BINTI DARUS", "NOOR AZIZAH BINTI MOHD NOH", "NUH BIN ABDUL KADIR", 
+            "NURHIDAYA BINTI GANI", "NURJILAH BINTI TIALUS", "NURUL FATIHA BINTI ROMALI", "RAMLAH BINTI MD ADNAN", 
+            "RICKY BIN FRANCIS", "RITA GARA", "ROSMINAH BINTI RANTIAN", "ROY NORMAN BIN I NIIP", 
+            "SALIZAH BINTI LUSLY", "SARNI LAEMBA", "SITI HALIMAH BINTI BASRI", "SITI HUSNIYAH BINTI SAJIMIN", 
+            "SITI RASMAH BINTI ABD LATIP", "STELLA NILUS", "TIMOTHY RICHARD G.", "VARENECA SUTIAN", 
+            "NUR NADIRA ATIQAH MOHD SAFRI", "NELCILLA NELZAH NUKILI"
+        ];
+
+        const dropdown = document.getElementById("guruDropdown");
+        senaraiGuru.forEach(guru => {
+            let option = document.createElement("option");
+            option.text = guru;
+            option.value = guru === "Sila Pilih Nama Guru..." ? "" : guru;
+            dropdown.add(option);
+        });
+
+        // PENGURUSAN JADUAL PENGLIBATAN & PENGIRAAN
+        let totalSchools = 0;
+        const tbody = document.getElementById("tableBody");
+        const categories = ["Murid", "Guru", "Lain-lain"];
+
+        // Fungsi Menambah Baris Sekolah
+        function addSchoolRow() {
+            totalSchools++;
+            let s = totalSchools;
+            let html = "";
+            
+            categories.forEach((cat, index) => {
+                html += `<tr>`;
+                if (index === 0) {
+                    html += `<td rowspan="3" class="font-bold">${s}</td>`;
+                    html += `<td rowspan="3" class="bg-user-input"><div contenteditable="true" class="table-input w-full h-full min-h-[50px] outline-none flex items-center justify-center">Taip Nama Sekolah / PPD ${s}</div></td>`;
+                }
+                html += `<td class="font-semibold">${cat}</td>`;
+                
+                // Input Kaum x Jantina
+                const races = ['m', 'c', 'i', 'll'];
+                races.forEach(r => {
+                    html += `<td class="bg-user-input"><input type="number" min="0" class="table-input calc-val" data-row="${s}-${index}" data-col="${r}-l" value=""></td>`;
+                    html += `<td class="bg-user-input"><input type="number" min="0" class="table-input calc-val" data-row="${s}-${index}" data-col="${r}-p" value=""></td>`;
+                });
+
+                // Ruang Auto-Kira
+                html += `<td class="bg-auto-calc" id="jum-l-${s}-${index}">0</td>`;
+                html += `<td class="bg-auto-calc" id="jum-p-${s}-${index}">0</td>`;
+                html += `<td class="bg-auto-calc text-blue-900" id="jum-besar-${s}-${index}">0</td>`;
+                html += `</tr>`;
+            });
+
+            // Masukkan row ke dalam tabel
+            tbody.insertAdjacentHTML('beforeend', html);
+
+            // Pasang event listener pengiraan kepada input yang baru ditambah
+            const newInputs = tbody.querySelectorAll(`.calc-val[data-row^="${s}-"]`);
+            newInputs.forEach(input => {
+                input.addEventListener('input', calculateTotals);
+            });
+        }
+
+        // Initialize 2 buah sekolah secara default (seperti format asal)
+        function initTable() {
+            addSchoolRow();
+            addSchoolRow();
+        }
+        initTable();
+
+        // Fungsi Mengira Jumlah Keseluruhan
+        function calculateTotals() {
+            let gt = { 'm-l':0, 'm-p':0, 'c-l':0, 'c-p':0, 'i-l':0, 'i-p':0, 'll-l':0, 'll-p':0 };
+            
+            for (let s = 1; s <= totalSchools; s++) {
+                categories.forEach((cat, index) => {
+                    let rowL = 0, rowP = 0;
+                    const races = ['m', 'c', 'i', 'll'];
+                    
+                    races.forEach(r => {
+                        let inputL = document.querySelector(`input[data-row="${s}-${index}"][data-col="${r}-l"]`);
+                        let valL = inputL ? parseInt(inputL.value) || 0 : 0;
+                        
+                        let inputP = document.querySelector(`input[data-row="${s}-${index}"][data-col="${r}-p"]`);
+                        let valP = inputP ? parseInt(inputP.value) || 0 : 0;
+                        
+                        rowL += valL; rowP += valP;
+                        gt[`${r}-l`] += valL; gt[`${r}-p`] += valP;
+                    });
+
+                    let eJumL = document.getElementById(`jum-l-${s}-${index}`);
+                    let eJumP = document.getElementById(`jum-p-${s}-${index}`);
+                    let eBesar = document.getElementById(`jum-besar-${s}-${index}`);
+                    
+                    if(eJumL) eJumL.innerText = rowL;
+                    if(eJumP) eJumP.innerText = rowP;
+                    if(eBesar) eBesar.innerText = rowL + rowP;
+                });
+            }
+
+            // Update Grand Totals (Baris Paling Bawah)
+            let grandJumL = 0, grandJumP = 0;
+            for(let key in gt) {
+                let eGt = document.getElementById(`gt-${key}`);
+                if(eGt) eGt.innerText = gt[key];
+
+                if(key.endsWith('-l')) grandJumL += gt[key];
+                if(key.endsWith('-p')) grandJumP += gt[key];
+            }
+            
+            document.getElementById('gt-jum-l').innerText = grandJumL;
+            document.getElementById('gt-jum-p').innerText = grandJumP;
+            document.getElementById('gt-besar').innerText = grandJumL + grandJumP;
+        }
+
+        // FUNGSI MUAT NAIK GAMBAR
+        function previewImage(input, imgId) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById(imgId);
+                    img.src = e.target.result;
+                    img.classList.remove('hidden');
+                    document.getElementById('btn-rm-' + imgId.split('-')[1]).classList.remove('hidden');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function removeImage(imgId) {
+            const img = document.getElementById(imgId);
+            img.src = "";
+            img.classList.add('hidden');
+            document.getElementById('btn-rm-' + imgId.split('-')[1]).classList.add('hidden');
+            img.previousElementSibling.previousElementSibling.previousElementSibling.value = "";
+        }
+
+        // FUNGSI JANA PDF MENGGUNAKAN html2pdf.js
+        function generatePDF() {
+            // Sembunyikan elemen yg tidak diperlukan semasa print
+            document.querySelectorAll('[id^="btn-rm-"]').forEach(btn => btn.style.display = 'none');
+            document.getElementById('btnTambahSekolah').style.display = 'none';
+            
+            const element = document.getElementById('report-content');
+            
+            // Konfigurasi html2pdf
+            const opt = {
+                margin:       [0, 0, 0, 0],
+                filename:     'Laporan_Program_Daerah_SMSFX.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { 
+                    scale: 2, 
+                    useCORS: true, 
+                    logging: false,
+                    windowWidth: element.scrollWidth
+                },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            const btn = document.querySelector('.floating-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> MENJANA PDF...';
+            btn.classList.replace('bg-red-600', 'bg-gray-500');
+            btn.disabled = true;
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                // Pulihkan semula butang dan elemen tersembunyi
+                btn.innerHTML = originalText;
+                btn.classList.replace('bg-gray-500', 'bg-red-600');
+                btn.disabled = false;
+                
+                document.getElementById('btnTambahSekolah').style.display = 'flex';
+                document.querySelectorAll('[id^="btn-rm-"]').forEach(btn => {
+                    if(!btn.nextElementSibling?.classList.contains('hidden')){
+                        btn.style.display = 'flex';
+                    }
+                });
+            }).catch(err => {
+                alert("Ralat semasa menjana PDF. Sila cuba lagi.");
+                console.error(err);
+                btn.innerHTML = originalText;
+                btn.classList.replace('bg-gray-500', 'bg-red-600');
+                btn.disabled = false;
+            });
+        }
+    </script>
+</body>
+</html>
